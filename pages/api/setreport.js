@@ -17,6 +17,13 @@ const handler = async (req, res) => {
   console.log({ result, filename })
   for (const dbGame of curr) {
     if (dbGame.filename === filename) {
+      if (result === 'fix') {
+        const saveGame = { ...dbGame, setId: 1553 };
+        await DB("Game")
+          .where({ filename: dbGame.filename })
+          .update(saveGame);
+        break;
+      }
       const isW = result === 'yes';
       const isL = result === 'no';
       const isNotRanked = result === 'null'

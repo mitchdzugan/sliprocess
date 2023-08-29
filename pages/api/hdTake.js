@@ -23,7 +23,7 @@ export default async (req, res) => {
   const dbGames = await DB("Game")
     .select("*")
     .join("Combo", "Game.id", "Combo.gameId") 
-    .where('Combo.bossrush', 'def');
+    .where('Combo.bossrush', 'rep');
   const dbGamesByFilename = _.keyBy(dbGames, "filename");
   console.log(Object.keys(dbGamesByFilename).length);
   const files = await fs.readdir(slippiRoot);

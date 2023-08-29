@@ -62,10 +62,10 @@ module.exports = async (shuffle = false) => {
     const sortBy = (f) => { results.sort((a, b) => f(a) - f(b)); };
     sortBy(byInterest);
     // results.reverse();
-    //results = results.filter(({ stageId, characterId }) => `${characterId}.${stageId}` === '9.28');
-    results = results.filter(({ moves, bossrush, Y, M }) => (`${Y}.${M}` === '2022.09' || `${Y}.${M}` === '2022.10' ||  `${Y}.${M}` === '2022.11' ||  `${Y}.${M}` === '2022.12' ||  `${Y}.${M}` === '2023.01' || bossrush === 'yes' || bossrush === 'def') && (
-        parseInt(moves) > 2 || bossrush === 'yes' || bossrush === 'maybe' || bossrush === 'idk' || bossrush === 'def'
-    ))
+    // results = results.filter(({ stageId, characterId }) => `${characterId}.` === '18.');
+    results = results.filter(({ moves, bossrush, Y, M, id }) => ((`${Y}.${M}` === '2022.09' ||  `${Y}.${M}` === '2023.08' ||  `${Y}.${M}` === '2023.07' || bossrush === 'yes' || bossrush === 'def'|| bossrush === 'rep') && (
+        parseInt(moves) > 2 || bossrush === 'yes' || bossrush === 'maybe' || bossrush === 'idk' || bossrush === 'def'|| bossrush === 'rep'
+    )) || id === 265541 || id === 80660)
 
     return {
         combos: results,

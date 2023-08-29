@@ -11,6 +11,7 @@ const Filter = {
   MAYBE: "maybe",
   YES: "yes",
   DEF: "def",
+  REPUTATION: "rep"
 }
 
 const Char = {
@@ -44,10 +45,10 @@ const Char = {
 
 const Stage = {
   2: "FoD",
-  3: "PS",
-  8: "YI",
-  28: "DL",
-  31: "BF",
+  3: "Stadium",
+  8: "Yoshis",
+  28: "Dreamland",
+  31: "Battlefield",
   32: "FD",
 }
 
@@ -56,52 +57,79 @@ const hash = isServer ? Filter.YES : ((window && window.location && window.locat
 const parts = hash.split('.');
 const initFilter = parts[0];
 const initId = parseInt(parts[1]);
+
+const Row = ({ setFocusInd, nth, row, focusId, filter, doClip }) => {
+  const [clipStart, setClipStart] = React.useState(row.clipStart || row.frameId);
+  const [clipLength, setClipLength] = React.useState(row.clipLength || 400);
+  if (row.id === focusId) {
+    console.log(clipStart, clipLength, row);
+  }
+  return (
+    <tr
+      onClick={(e) => e.preventDefault() || setFocusInd(nth)} 
+      id={`row_${row.id}`}
+      key={row.id}
+      className={row.id === focusId ? 'table-active' : null}
+    >
+      <td>{row.id}</td>
+      <td>{row.game}</td>
+      <td>{row.galint}</td>
+      <td><input type="number" value={clipStart} onChange={(e) => setClipStart(e.target.value)} /></td>
+      <td><input type="number" value={clipLength} onChange={(e) => setClipLength(e.target.value)} /></td>
+      <td>{(parseInt(clipStart, 10) === row.clipStart && parseInt(clipLength, 10) === row.clipLength) ? "yes" : "no"}</td>
+      <td><button onClick={() => doClip(parseInt(clipStart, 10), parseInt(clipLength, 10), row.game)} >clip</button></td>
+      {filter === Filter.ALL ? (<td>{row.usage}</td>) : null}
+    </tr>
+  );
+};
+
 const Kills = ({ endpoint, miley }) => {
   const [_data, _setData] = React.useState([]);
-  const { all, processed, recorded } = _data;
   const getFilteredData = (_data, filter) => ({ 
-    [Filter.ALL]: _data.filter(d => d.setId !== 0 && (!d.setId || d.setId > 1600)),
-    [Filter.NO]: _data.filter(d => d.setId === 0),
-    [Filter.YES]: _data.filter(d => d.setId && d.setId > 0),
+    [Filter.ALL]: _data,
+    [Filter.NEW]: _data.filter(d => !d.usage),
+    [Filter.NO]: _data.filter(d => d.usage === Filter.NO),
+    [Filter.IDK]: _data.filter(d => d.usage === Filter.IDK),
+    [Filter.MAYBE]: _data.filter(d => d.usage === Filter.MAYBE),
+    [Filter.YES]: _data.filter(d => d.usage === Filter.YES),
+    [Filter.DEF]: _data.filter(d => d.usage === Filter.DEF),
   })[filter];
   const [filter, setFilter] = React.useState(initFilter);
   const data = getFilteredData(_data, filter);
-  const games = _.keyBy(data, "id");
+  const combos = _.keyBy(data, "id");
   const [focusInd, setFocusInd] = React.useState(undefined);
   const focusId = ((data || [])[focusInd] || {}).id;
-  const focused = games[focusId];
-  console.log({ focusId, focused, focusInd });
+  const focused = combos[focusId];
   const isLoading = _data.length === 0;
   const isFocused = Boolean(focused);
   const videoRef = React.useRef(null);
   const R = React.useRef({});
   const setData = (data) => {
     let isSet = isFocused;
-    console.log({ isSet, isFocused, initId, pre: true });
-    getFilteredData(data, filter).forEach(({ id, setId }, ind) => {
-      if (!isSet && !setId && setId !== 0) {
+    getFilteredData(data, filter).forEach(({ id }, ind) => {
+      if (!isSet && id === initId) {
         setFocusInd(ind);
         isSet = true; 
       }
     });
-    console.log({ isSet, isFocused, initId, pre: false });
     if (!isSet) { setFocusInd(0); }
     _setData(data);
   };
   React.useEffect(
-    () => fetch("/api/setgames").then(r => r.json()).then(setData),
+    () => fetch("/api/galints").then(r => r.json()).then(setData),
     []
   );
 
-  const source = isFocused && `/vods/preview/${focused.filename}.mp4`;
+  const source = isFocused && (focused.clipLength ? `/vods/clips/GALINT-${focused.id}.mp4?id=${Date.now()}` : `/vods/preview/${focused.game}.mp4`);
+  console.log(focused)
   const start = isFocused && (
-    focused.startFrame / 60
+    focused.clipLength ? 0 : (focused.frameId / 60)
   );
   const end = isFocused && (
-    (focused.frames + 240 + focused.startFrame) / 60
+    focused.clipLength ? (focused.clipLength / 60) : ((400 + focused.frameId) / 60)
   );
   const loading = <div>loading...</div>
-  const content = (isLoading || !focused || !focused.filename) ? loading : (
+  const content = (isLoading || !focused || !focused.game) ? loading : (
     <video
       key={source}
       ref={videoRef} 
@@ -134,6 +162,10 @@ const Kills = ({ endpoint, miley }) => {
           const { start, end } = R.current;
           const video = videoRef.current || null;
           if (!video) { return; } 
+          const currentTime = video.currentTime;
+          if (currentTime < start || currentTime > end) {
+            video.currentTime = start;
+          }
           if (!video.playing) { video.play(); }
         },
         100
@@ -152,7 +184,6 @@ const Kills = ({ endpoint, miley }) => {
         const keyCode = e.keyCode;
         const focused = data[focusInd] || {};
         if (keyCode === 40) {
-          console.log(data.length, focusInd + 1)
           setFocusInd(Math.max(0, Math.min(data.length - 1, focusInd + 1)));
           return;
         }
@@ -160,17 +191,19 @@ const Kills = ({ endpoint, miley }) => {
           setFocusInd(Math.max(0, focusInd - 1));
           return;
         }
-        const results = {
-          87: Filter.YES,
-          76: Filter.NO,
-          81: 'fix',
-          78: "null",
+        const bossrush = {
+          68: Filter.DEF,
+          89: Filter.YES,
+          78: Filter.NO,
+          77: Filter.MAYBE,
+          75: Filter.IDK,
+          67: "null",
         };
-        if (results[keyCode]) {
-          fetch(`/api/setreport`, {
+        if (bossrush[keyCode]) {
+          fetch('/api/galint_usage', {
             method: "POST",
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ result: results[keyCode], filename: focused.filename })
+            body: JSON.stringify({ bossrush: bossrush[keyCode], comboId: focused.id })
           }).then(res => res.json()).then(setData)
         }
       };
@@ -188,7 +221,15 @@ const Kills = ({ endpoint, miley }) => {
     }
   }, []);
   if (!isLoaded) { return <div/>; }
-  console.log({ data })
+
+  const doClip = (clipStart, clipLength, game) => {
+    fetch('/api/do_clip', {
+      method: "POST",
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game, clipStart, clipLength, comboId: focused.id })
+    }).then(res => res.json()).then(setData)
+  };
+
   return (
     <div className={styles.container}>
       <Head>
@@ -213,66 +254,47 @@ const Kills = ({ endpoint, miley }) => {
           alignItems: "center"
         }} >
           <div className="btn-group">
-            {[Filter.ALL, Filter.YES, Filter.NO].map(f => {
+            {[Filter.NEW, Filter.YES, Filter.DEF, Filter.NO, Filter.MAYBE, Filter.IDK/*, Filter.ALL*/].map(f => {
               const fdata = getFilteredData(_data, f);
-              const frames = fdata.reduce((total, row) => total + row.lastFrame, 0);
-              const secondsRaw = frames / 60;
-              const minutesRaw = secondsRaw / 60;
-              const minutes = Math.floor(minutesRaw);
-              const seconds = Math.floor(60 * (minutesRaw - minutes));
               return ( 
                 <a 
                   key={f}
                   onClick={(e) => { e.preventDefault(); setFilter(f); setFocusInd(0); }}
                   className={`btn btn-outline-secondary${f === filter ? ' active' : ''}`}
                 >
-                  {f} ({fdata.length}) {minutes}:{seconds < 10 ? '0' : ''}{seconds}
+                  {f} ({fdata.length})
                 </a>
               );
             })}
           </div>
           <div style={{ width: "1rem" }} />
-          <span style={{ color: "white", width: "13rem", fontSize: "0.75rem" }} >
-            {all} files  ⁃  {Math.floor(1000 * processed / all) / 10}% ({processed}) processed
-          </span>
-
         </div>
         <div className={styles.tableWrapper}>
         <div className={styles.tableContainer}>
         <table key={filter} className="table table-dark" >
           <thead>
             <tr>
+              <th>Id</th>
+              <th>Game</th>
+              <th>Galint</th>
+              <th>Start</th>
               <th>Length</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>CC</th>
-              <th>Name</th>
-              <th>Character</th>
-              <th>Stage</th>
-              <th>is?</th>
-              <th>Result</th>
-              <th>setId</th>
+              <th>Clipped?</th>
+              <th>Clip</th>
+              {filter === Filter.ALL ? (<th>Usage?</th>) : null}
             </tr>
           </thead>
           <tbody>
             {(data || []).map((row, nth) => (
-              <tr
-                onClick={(e) => e.preventDefault() || setFocusInd(nth)} 
-                id={`row_${row.id}`}
+              <Row
                 key={row.id}
-                className={row.id === focusId ? 'table-active' : null}
-              >
-                <td>{Math.floor(row.lastFrame / 60 / 60)}:{Math.floor((row.lastFrame / 60) % 60)}</td>
-                <td>{(new Date(row.date)).toLocaleDateString()}</td> 
-                <td>{(new Date(row.date)).toLocaleTimeString()}</td> 
-                <td>{row.oppCC}</td> 
-                <td>{row.oppDisplayName}</td> 
-                <td>{Char[row.characterId]} [{row.characterId}]</td>
-                <td>{Stage[row.stageId] || "OTHER"} [{row.stageId}]</td> 
-                <td>{row.isSlpRanked ? 'Y' : (row.isSlpRanked === false ? 'N' : '-')}</td> 
-                <td>{({ [true]: 'W', [false]: 'L' })[row.isWin]}</td> 
-                <td>{row.setId}</td> 
-              </tr>
+                setFocusInd={setFocusInd}
+                nth={nth}
+                row={row}
+                focusId={focusId}
+                filter={filter}
+                doClip={doClip}
+              />
             ))}
           </tbody>
         </table>

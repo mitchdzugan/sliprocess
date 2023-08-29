@@ -33,7 +33,7 @@ const Char = {
     0: "Falcon",
     1: "DK",
     2: "Fox",
-    3: "G&W",
+    3: "GandW",
     4: "Kirby",
     5: "Bowser",
     6: "Link",
@@ -51,8 +51,8 @@ const Char = {
     18: "Zelda",
     19: "Sheik",
     20: "Falco",
-    21: "Young Link",
-    22: "Dr. Mario",
+    21: "YLink",
+    22: "Doc",
     23: "Roy",
     24: "Pichu",
     25: "Ganondorf"
@@ -107,13 +107,13 @@ const handler = async (req, res) => {
         [22]: [10, 'pm'],
         [23]: [11, 'pm'],
     })[parseInt(h, 10)]
-    const date = `${M}/${D}/${Y} ${hh}:${m}${hd}`;
+    const date = `${M}_${D}_${Y}\\ ${hh}_${m}${hd}`;
     let oppCharacters = "";
     const seen = {};
     for (const g of games) {
         const characterId = g.characterId === null ? 17 : g.characterId;
         const char = Char[characterId];
-        if (!seen[char]) { oppCharacters += '/' + char; }
+        if (!seen[char]) { oppCharacters += ',' + char; }
         seen[char] = true;
     }
     oppCharacters = oppCharacters.substring(1);

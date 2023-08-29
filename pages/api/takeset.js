@@ -34,8 +34,8 @@ export default async (req, res) => {
     let setIdToRec = 0;
     results.forEach(({ setId }) => {
         const isFin = !!fin[setId];
-        const isWip = !!wip[setId] && (now - wip[setId] < 60 * 30);
-        if (!isFin && !isWip && !setIdToRec) {
+        const isWip = !!wip[setId] && (now - wip[setId] < 60 * 60);
+        if (!isFin && !isWip && !setIdToRec && setId > 1920) {
             setIdToRec = setId;
         }
     });

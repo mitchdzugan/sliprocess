@@ -13,6 +13,7 @@ const Filter = {
   MAYBE: "maybe",
   YES: "yes",
   DEF: "def",
+  REPUTATION: "rep"
 }
 
 const Char = {
@@ -73,6 +74,7 @@ const Kills = ({ endpoint, miley }) => {
     [Filter.IDK]: _data.combos.filter(d => d.bossrush === Filter.IDK),
     [Filter.MAYBE]: _data.combos.filter(d => d.bossrush === Filter.MAYBE),
     [Filter.YES]: _data.combos.filter(d => d.bossrush === Filter.YES),
+    [Filter.REPUTATION]: _.sortBy(_data.combos.filter(d => d.bossrush === Filter.REPUTATION), 'id'),
     [Filter.DEF]: _data.combos.filter(d => d.bossrush === Filter.DEF),
   })[filter];
   const [filter, setFilter] = React.useState(initFilter);
@@ -173,6 +175,7 @@ const Kills = ({ endpoint, miley }) => {
         }
         const bossrush = {
           68: Filter.DEF,
+          82: Filter.REPUTATION,
           89: Filter.YES,
           78: Filter.NO,
           77: Filter.MAYBE,
@@ -225,7 +228,7 @@ const Kills = ({ endpoint, miley }) => {
           alignItems: "center"
         }} >
           <div className="btn-group">
-            {[Filter.NEW, Filter.YES, Filter.DEF, Filter.NO, Filter.MAYBE, Filter.IDK/*, Filter.ALL*/].map(f => {
+            {[Filter.NEW, Filter.YES, Filter.REPUTATION, Filter.DEF, Filter.NO, Filter.MAYBE, Filter.IDK/*, Filter.ALL*/].map(f => {
               const fdata = getFilteredData(_data, f);
               const frames = fdata.reduce((total, row) => total + row.frames, 0);
               const secondsRaw = frames / 60;
@@ -266,7 +269,7 @@ const Kills = ({ endpoint, miley }) => {
             </tr>
           </thead>
           <tbody>
-            {(data || []).map((row, nth) => (
+            {(data || []).map((row, nth) => (console.log(row) || 1) && (
               <tr
                 onClick={(e) => e.preventDefault() || setFocusInd(nth)} 
                 id={`row_${row.id}`}

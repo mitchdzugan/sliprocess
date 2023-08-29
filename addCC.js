@@ -6,12 +6,16 @@ const { SlippiGame }                    = require("@slippi/slippi-js");
 const getGame = (path) => {
     const game = new SlippiGame('/mnt/d/Slippi/' + path + '.slp');
     const settings = game.getSettings();
+    const info = settings.matchInfo || {};
+    const matchId = info.matchId || '';
+    game.isSlpRanked = matchId.startsWith('mode.ranked');
     const metadata = game.getMetadata();
+    // console.log(metadata);
     game.isMe = (n) => {
         const characterId = (((settings || {}).players || [])[n] || {}).characterId;
         const codeA = ((((settings || {}).players || [])[n] || {}).connectCode || "").toLowerCase();
         const codeB = (((((metadata || {}).players || [])[n] || {}).names || {}).code || "").toLowerCase();
-        return (characterId === 17) && (
+        return (true) && (
             codeA === "pink#715" || codeB === "pink#715"
         );
     };
@@ -25,6 +29,7 @@ const getGame = (path) => {
         const nameB = ((((metadata || {}).players || [])[n] || {}).names || {}).netplay;
         return nameA || nameB;
     };
+    game.gameMode = settings.gameMode;
     return game;
 };
 
@@ -32,17 +37,19 @@ const main = async () => {
     let results = await DB
         .select("Game.*")
         .from("Game")
-        .where("Game.filename", '>', 'Game_20221212T125254')
+        .where("Game.filename", '>', 'Game_20230731T072222')
         .orderBy([ 
             { column: "Game.filename", order: 'asc' },
         ]);
     let i = 0;
-    results.forEach(async (dbGame) => {
+    results.slice(0, 700).forEach(async (dbGame) => {
         const game = getGame(dbGame.filename)
         const isMe = game.isMe(0) || game.isMe(1);
-        if (isMe) {
-            const oppCC = game.getCode(game.isMe(0) ? 1 : 0);
-            const oppDisplayName = game.getName(game.isMe(0) ? 1 : 0);
+        if (isMe && !dbGame.oppCC) {
+            const isSlpRanked = game.isSlpRanked;
+            const oppPort = (game.isMe(0)) ? 1 : 0
+            const oppCC = game.getCode(oppPort);
+            const oppDisplayName = game.getName(oppPort);
             let lastFrame = dbGame.lastFrame;
             if (!lastFrame) {
                 const metadata = game.getMetadata();
@@ -51,19 +58,20 @@ const main = async () => {
                 lastFrame = mLastFrame || cLastFrame;
             }
             i++;
-            console.log(i, results.length, oppCC, oppDisplayName);
+            console.log(i, results.length, oppCC, oppDisplayName, isSlpRanked);
             const saveGame = {
                 ...dbGame,
                 lastFrame,
                 oppCC,
                 oppDisplayName,
+                isSlpRanked,
             };
             await DB("Game")
                 .where({ filename: dbGame.filename })
                 .update(saveGame);
         } else {
             i++;
-            console.log(i, results.length);
+            console.log(i, results.length, dbGame.oppCC, game.gameMode);
         }
     });
 }
